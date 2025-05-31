@@ -52,8 +52,7 @@ int32_t CDECL gifenc_add_image(GifFileType *gif, int left, int top, int width, i
     frm.ImageDesc.ColorMap = GifMakeMapObject(colors, palette);
   }
   
-  frm.RasterBits = (GifByteType*)malloc(width * height);
-  memcpy(frm.RasterBits, chunky, width * height);
+  frm.RasterBits = (GifByteType*)chunky;
   
   if (GifMakeSavedImage(gif, &frm)) { return GIF_OK; }
   
