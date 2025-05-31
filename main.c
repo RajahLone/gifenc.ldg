@@ -39,7 +39,7 @@ GifFileType * CDECL gifenc_open(const char *fileName, int width, int height, int
 
 int32_t CDECL gifenc_set_loops(GifFileType *gif, int loops)
 {
-  if (loops > 0 && loops <= 0xFFFF)
+  if (loops >= 0 && loops <= 0xFFFF)
   {
     unsigned char netscape[12] = "NETSCAPE2.0";
             
