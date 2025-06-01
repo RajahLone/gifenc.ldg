@@ -109,9 +109,6 @@ int32_t CDECL gifenc_close(GifFileType *gif) { /* implicit EGifCloseFile() call 
 
 const char * CDECL gifenc_get_last_error(GifFileType *gif) { return GifErrorString(gif->Error); }
 
-int CDECL gifenc_get_error() { return error; }
-
-
 /* populate functions list and info for the LDG */
 
 PROC LibFunc[] =
