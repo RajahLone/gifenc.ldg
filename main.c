@@ -71,7 +71,7 @@ int32_t CDECL gifenc_add_image(GifFileType *gif, int left, int top, int width, i
   frm->ImageDesc.Height = ((frm->ImageDesc.Top + height) > gif->SHeight) ? (gif->SHeight - frm->ImageDesc.Top) : height;
   frm->ImageDesc.Interlace = false;
   
-  if (colors > 0) { frm->ImageDesc.ColorMap = GifMakeMapObject(colors, (GifColorType*)palette); }
+  if (colors > 0) { frm->ImageDesc.ColorMap = GifMakeMapObject(colors, (GifColorType*)palette); } else { frm->ImageDesc.ColorMap = NULL; }
   
   frm->RasterBits = (GifByteType*)chunky;
   
@@ -105,7 +105,7 @@ int32_t CDECL gifenc_set_special(GifFileType *gif, int frame_idx, int trnsprnt, 
 
 int32_t CDECL gifenc_write(GifFileType *gif) { return (int32_t)EGifSpew(gif); }
 
-int32_t CDECL gifenc_close(GifFileType *gif) { error = 0; if (EGifCloseFile(gif, &error) == GIF_ERROR) { return -error; } return GIF_OK; }
+int32_t CDECL gifenc_close(GifFileType *gif) { /* implicit EGifCloseFile() call done at EGifSpew() end */ return GIF_OK; }
 
 const char * CDECL gifenc_get_last_error(GifFileType *gif) { return GifErrorString(gif->Error); }
 
