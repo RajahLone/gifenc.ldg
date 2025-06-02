@@ -17,7 +17,7 @@
 
 const char * CDECL gifenc_get_lib_version() { return VERSION_LIB(GIFLIB_MAJOR, GIFLIB_MINOR, GIFLIB_RELEASE); }
 
-GifFileType * CDECL gifenc_open(const char *fileName, int width, int height, int bckgrnd, int colors, uint8_t *palette)
+GifFileType * CDECL gifenc_open(const char *fileName, int width, int height, int bckgrnd, int colors, const uint8_t *palette)
 {
   int error = 0;
 
@@ -70,7 +70,7 @@ int32_t CDECL gifenc_set_loops(GifFileType *gif, int loops)
   return GIF_ERROR;
 }
 
-int32_t CDECL gifenc_add_image(GifFileType *gif, int left, int top, int width, int height, int colors, uint8_t *palette, const uint8_t *chunky)
+int32_t CDECL gifenc_add_image(GifFileType *gif, int left, int top, int width, int height, int colors, const uint8_t *palette, const uint8_t *chunky)
 {
   SavedImage *frm = calloc(1, sizeof(SavedImage));
   
