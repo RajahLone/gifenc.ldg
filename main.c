@@ -13,18 +13,14 @@
 #define MIN(A, B) ((A) < (B) ? (A) : (B))
 #define MAX(A, B) ((A) > (B) ? (A) : (B))
 
-/* variables */
-
-int error;
-
 /* functions */
 
 const char * CDECL gifenc_get_lib_version() { return VERSION_LIB(GIFLIB_MAJOR, GIFLIB_MINOR, GIFLIB_RELEASE); }
 
 GifFileType * CDECL gifenc_open(const char *fileName, int width, int height, int bckgrnd, int colors, uint8_t *palette)
 {
-  error = 0;
-  
+  int error = 0;
+
   GifFileType *gif = EGifOpenFileName(fileName, true, &error);
     
   if (gif)
@@ -34,7 +30,20 @@ GifFileType * CDECL gifenc_open(const char *fileName, int width, int height, int
     gif->SColorResolution = 8;
     gif->SBackGroundColor = MAX(0, MIN(bckgrnd, 255));
     
-    if (colors > 0) { gif->SColorMap = GifMakeMapObject(colors, (GifColorType*)palette); }
+    if ((colors > 0) && (palette != NULL))
+    {
+			gif->SColorMap = GifMakeMapObject(colors, NULL);
+			
+			if (gif->SColorMap)
+			{
+        for (int c = 0; c < colors; ++c)
+			  {
+				  gif->SColorMap->Colors[c].Red = *palette++;
+				  gif->SColorMap->Colors[c].Green = *palette++;
+				  gif->SColorMap->Colors[c].Blue = *palette++;
+        }
+			}
+    }
   }
   
   return gif;
@@ -61,7 +70,7 @@ int32_t CDECL gifenc_set_loops(GifFileType *gif, int loops)
   return GIF_ERROR;
 }
 
-int32_t CDECL gifenc_add_image(GifFileType *gif, int left, int top, int width, int height, int colors, uint8_t *palette, uint8_t *chunky)
+int32_t CDECL gifenc_add_image(GifFileType *gif, int left, int top, int width, int height, int colors, uint8_t *palette, const uint8_t *chunky)
 {
   SavedImage *frm = calloc(1, sizeof(SavedImage));
   
@@ -71,7 +80,20 @@ int32_t CDECL gifenc_add_image(GifFileType *gif, int left, int top, int width, i
   frm->ImageDesc.Height = ((frm->ImageDesc.Top + height) > gif->SHeight) ? (gif->SHeight - frm->ImageDesc.Top) : height;
   frm->ImageDesc.Interlace = false;
   
-  if (colors > 0) { frm->ImageDesc.ColorMap = GifMakeMapObject(colors, (GifColorType*)palette); } else { frm->ImageDesc.ColorMap = NULL; }
+	if ((colors > 0) && (palette != NULL))
+	{
+		frm->ImageDesc.ColorMap = GifMakeMapObject(colors, NULL);
+
+		if (frm->ImageDesc.ColorMap != NULL)
+		{
+			for (int c = 0; c < colors; ++c)
+			{
+				frm->ImageDesc.ColorMap->Colors[c].Red = *palette++;
+				frm->ImageDesc.ColorMap->Colors[c].Green = *palette++;
+				frm->ImageDesc.ColorMap->Colors[c].Blue = *palette++;
+			}
+		}
+	}
   
   frm->RasterBits = (GifByteType*)chunky;
   
@@ -105,7 +127,10 @@ int32_t CDECL gifenc_set_special(GifFileType *gif, int frame_idx, int trnsprnt, 
 
 int32_t CDECL gifenc_write(GifFileType *gif) { return (int32_t)EGifSpew(gif); }
 
-int32_t CDECL gifenc_close(GifFileType *gif) { /* implicit EGifCloseFile() call done at EGifSpew() end */ return GIF_OK; }
+int32_t CDECL gifenc_close(GifFileType *gif) // close is implicit after write, but must be called in case of error while writing
+{
+	return EGifCloseFile(gif, NULL);
+}
 
 const char * CDECL gifenc_get_last_error(GifFileType *gif) { return GifErrorString(gif->Error); }
 
@@ -115,11 +140,11 @@ PROC LibFunc[] =
 {
   {"gifenc_get_lib_version", "const char* gifenc_get_lib_version();\n", gifenc_get_lib_version},
    
-  {"gifenc_open", "GifFileType* gifenc_open(const char *fileName, int width, int height, int bckgrnd, int colors, uint8_t *palette);\n", gifenc_open},
+  {"gifenc_open", "GifFileType* gifenc_open(const char *fileName, int width, int height, int bckgrnd, int colors, const uint8_t *palette);\n", gifenc_open},
   
   {"gifenc_set_loops", "int32_t gifenc_set_loops(GifFileType *gif, int loops);\n", gifenc_set_loops},
 
-  {"gifenc_add_image", "int32_t gifenc_add_image(GifFileType *gif, int left, int top, int width, int height, int colors, uint8_t *palette, uint8_t *chunky);\n", gifenc_add_image},
+  {"gifenc_add_image", "int32_t gifenc_add_image(GifFileType *gif, int left, int top, int width, int height, int colors, const uint8_t *palette, const uint8_t *chunky);\n", gifenc_add_image},
   {"gifenc_set_special", "int32_t gifenc_set_special(GifFileType *gif, int frame_idx, int trnsprnt, int disposal, int delay);\n", gifenc_set_special},
   
   {"gifenc_write", "int32_t gifenc_write(GifFileType *gif);\n", gifenc_write},
