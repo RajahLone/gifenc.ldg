@@ -1,7 +1,7 @@
 #
 # Makefile
 #
-CFLAGS  = -Wall -O -fomit-frame-pointer
+CFLAGS  = -Wall -O2 -fomit-frame-pointer
 LDFLAGS = -s
 LDLIBS  = -lldg -lgif
 
@@ -37,10 +37,13 @@ OBJS = $(COBJS:.c=.o)
 
 all: $(TARGET)
 	$(STRIP) ./build/68000/$(TARGET)
+	$(STACK) -S 64k ./build/68000/$(TARGET)
 	-@rm -f ./build/68000/*.o
 	$(STRIP) ./build/68020/$(TARGET)
+	$(STACK) -S 64k ./build/68020/$(TARGET)
 	-@rm -f ./build/68020/*.o
 	$(STRIP) ./build/ColdFire/$(TARGET)
+	$(STACK) -S 64k ./build/ColdFire/$(TARGET)
 	-@rm -f ./build/ColdFire/*.o
 	@echo All done
 
