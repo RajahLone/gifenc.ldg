@@ -73,33 +73,37 @@ int32_t CDECL gifenc_set_loops(GifFileType *gif, int loops)
 int32_t CDECL gifenc_add_image(GifFileType *gif, int left, int top, int width, int height, int colors, const uint8_t *palette, const uint8_t *chunky)
 {
   SavedImage *frm = calloc(1, sizeof(SavedImage));
+  SavedImage *ret = NULL;
   
-  frm->ImageDesc.Left = MAX(0, MIN(left, gif->SWidth - 1));
-  frm->ImageDesc.Top = MAX(0, MIN(top, gif->SHeight - 1));
-  frm->ImageDesc.Width = ((frm->ImageDesc.Left + width) > gif->SWidth) ? (gif->SWidth - frm->ImageDesc.Left) : width;
-  frm->ImageDesc.Height = ((frm->ImageDesc.Top + height) > gif->SHeight) ? (gif->SHeight - frm->ImageDesc.Top) : height;
-  frm->ImageDesc.Interlace = false;
+  if (frm)
+  {
+    frm->ImageDesc.Left = MAX(0, MIN(left, gif->SWidth - 1));
+    frm->ImageDesc.Top = MAX(0, MIN(top, gif->SHeight - 1));
+    frm->ImageDesc.Width = ((frm->ImageDesc.Left + width) > gif->SWidth) ? (gif->SWidth - frm->ImageDesc.Left) : width;
+    frm->ImageDesc.Height = ((frm->ImageDesc.Top + height) > gif->SHeight) ? (gif->SHeight - frm->ImageDesc.Top) : height;
+    frm->ImageDesc.Interlace = false;
   
-	if ((colors > 0) && (palette != NULL))
-	{
-		frm->ImageDesc.ColorMap = GifMakeMapObject(colors, NULL);
+	  if ((colors > 0) && (palette != NULL))
+	  {
+		  frm->ImageDesc.ColorMap = GifMakeMapObject(colors, NULL);
 
-		if (frm->ImageDesc.ColorMap != NULL)
-		{
-			for (int c = 0; c < colors; ++c)
-			{
-				frm->ImageDesc.ColorMap->Colors[c].Red = *palette++;
-				frm->ImageDesc.ColorMap->Colors[c].Green = *palette++;
-				frm->ImageDesc.ColorMap->Colors[c].Blue = *palette++;
-			}
-		}
+		  if (frm->ImageDesc.ColorMap != NULL)
+		  {
+			  for (int c = 0; c < colors; ++c)
+		 	  {
+				  frm->ImageDesc.ColorMap->Colors[c].Red = *palette++;
+				  frm->ImageDesc.ColorMap->Colors[c].Green = *palette++;
+				  frm->ImageDesc.ColorMap->Colors[c].Blue = *palette++;
+			  }
+		  }
+	  }
+  
+    frm->RasterBits = (GifByteType*)chunky;
+  
+	  ret = GifMakeSavedImage(gif, frm);
+  
+    free(frm);
 	}
-  
-  frm->RasterBits = (GifByteType*)chunky;
-  
-	SavedImage *ret = GifMakeSavedImage(gif, frm);
-  
-  free(frm);
   
   return ret ? GIF_OK : GIF_ERROR;
 }
