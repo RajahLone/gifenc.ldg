@@ -16,9 +16,9 @@
 /* structures */
 
 typedef struct GifLdgBuffer {
-    uint8_t *data;
-    int size;
-    int offset;
+  uint8_t *data;
+  int size;
+  int offset;
 } GifLdgBuffer;
 
 /* global variables */
@@ -31,27 +31,27 @@ const char * CDECL gifenc_get_lib_version() { return VERSION_LIB(GIFLIB_MAJOR, G
 
 int gifldg_write(GifFileType* gif, const GifByteType* data, int count)
 {
-	GifLdgBuffer *buf = (GifLdgBuffer *) gif->UserData;
+  GifLdgBuffer *buf = (GifLdgBuffer *) gif->UserData;
     
-	uint32_t new_size;
-	
-	if (buf->offset + count > buf->size)
-	{
-		new_size = 2 * buf->size;
-		
-		if (buf->offset + count > new_size) { new_size = (((buf->offset + count + 15) >> 4) << 4); }
-		
-		buf->data = realloc(buf->data, new_size);
-		
-		if (buf->data == NULL) { return 0; }
-		
+  uint32_t new_size;
+   
+  if (buf->offset + count > buf->size)
+  {
+    new_size = 2 * buf->size;
+      
+    if (buf->offset + count > new_size) { new_size = (((buf->offset + count + 15) >> 4) << 4); }
+      
+    buf->data = realloc(buf->data, new_size);
+      
+    if (buf->data == NULL) { return 0; }
+      
     buf->size = new_size;
-	}
+  }
     
-	memcpy(buf->data + buf->offset, data, count);
-	buf->offset += count;
+  memcpy(buf->data + buf->offset, data, count);
+  buf->offset += count;
     
-	return count;
+  return count;
 }
 
 GifFileType * CDECL gifenc_open(int width, int height, int bckgrnd, int colors, const uint8_t *palette)
@@ -62,7 +62,7 @@ GifFileType * CDECL gifenc_open(int width, int height, int bckgrnd, int colors, 
   buffer.size = size;
   buffer.offset = 0;
 
-	if (buffer.data == NULL) { return NULL; }
+  if (buffer.data == NULL) { return NULL; }
 
   GifFileType *gif = EGifOpen(&buffer, &gifldg_write, NULL);
     
@@ -75,17 +75,17 @@ GifFileType * CDECL gifenc_open(int width, int height, int bckgrnd, int colors, 
     
     if ((colors > 0) && (palette != NULL))
     {
-			gif->SColorMap = GifMakeMapObject(colors, NULL);
-			
-			if (gif->SColorMap)
-			{
+      gif->SColorMap = GifMakeMapObject(colors, NULL);
+         
+      if (gif->SColorMap)
+      {
         for (int c = 0; c < colors; ++c)
-			  {
-				  gif->SColorMap->Colors[c].Red = *palette++;
-				  gif->SColorMap->Colors[c].Green = *palette++;
-				  gif->SColorMap->Colors[c].Blue = *palette++;
+        {
+          gif->SColorMap->Colors[c].Red = *palette++;
+          gif->SColorMap->Colors[c].Green = *palette++;
+          gif->SColorMap->Colors[c].Blue = *palette++;
         }
-			}
+      }
     }
   }
   
@@ -126,27 +126,27 @@ int32_t CDECL gifenc_add_image(GifFileType *gif, int left, int top, int width, i
     frm->ImageDesc.Height = ((frm->ImageDesc.Top + height) > gif->SHeight) ? (gif->SHeight - frm->ImageDesc.Top) : height;
     frm->ImageDesc.Interlace = false;
   
-	  if ((colors > 0) && (palette != NULL))
-	  {
-		  frm->ImageDesc.ColorMap = GifMakeMapObject(colors, NULL);
+    if ((colors > 0) && (palette != NULL))
+    {
+      frm->ImageDesc.ColorMap = GifMakeMapObject(colors, NULL);
 
-		  if (frm->ImageDesc.ColorMap != NULL)
-		  {
-			  for (int c = 0; c < colors; ++c)
-		 	  {
-				  frm->ImageDesc.ColorMap->Colors[c].Red = *palette++;
-				  frm->ImageDesc.ColorMap->Colors[c].Green = *palette++;
-				  frm->ImageDesc.ColorMap->Colors[c].Blue = *palette++;
-			  }
-		  }
-	  }
+      if (frm->ImageDesc.ColorMap != NULL)
+      {
+        for (int c = 0; c < colors; ++c)
+        {
+          frm->ImageDesc.ColorMap->Colors[c].Red = *palette++;
+          frm->ImageDesc.ColorMap->Colors[c].Green = *palette++;
+          frm->ImageDesc.ColorMap->Colors[c].Blue = *palette++;
+        }
+      }
+    }
   
     frm->RasterBits = (GifByteType*)chunky;
   
-	  ret = GifMakeSavedImage(gif, frm);
+    ret = GifMakeSavedImage(gif, frm);
   
     free(frm);
-	}
+  }
   
   return ret ? GIF_OK : GIF_ERROR;
 }
@@ -179,15 +179,15 @@ uint32_t CDECL gifenc_get_filesize() { return buffer.offset; }
 
 int32_t CDECL gifenc_close(GifFileType *gif)
 {
-	EGifCloseFile(gif, NULL);
+  EGifCloseFile(gif, NULL);
 
-	free(buffer.data);
+  free(buffer.data);
 
   buffer.data = NULL;
   buffer.size = 0;
   buffer.offset = 0;
 
-	return GIF_OK;
+   return GIF_OK;
 }
 
 const char * CDECL gifenc_get_last_error(GifFileType *gif) { return GifErrorString(gif->Error); }
