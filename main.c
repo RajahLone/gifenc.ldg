@@ -13,15 +13,58 @@
 #define MIN(A, B) ((A) < (B) ? (A) : (B))
 #define MAX(A, B) ((A) > (B) ? (A) : (B))
 
+/* structures */
+
+typedef struct GifLdgBuffer {
+    uint8_t *data;
+    int size;
+    int offset;
+} GifLdgBuffer;
+
+/* global variables */
+
+static GifLdgBuffer buffer;
+
 /* functions */
 
 const char * CDECL gifenc_get_lib_version() { return VERSION_LIB(GIFLIB_MAJOR, GIFLIB_MINOR, GIFLIB_RELEASE); }
 
-GifFileType * CDECL gifenc_open(const char *fileName, int width, int height, int bckgrnd, int colors, const uint8_t *palette)
+int gifldg_write(GifFileType* gif, const GifByteType* data, int count)
 {
-  int error = 0;
+	GifLdgBuffer *buf = (GifLdgBuffer *) gif->UserData;
+    
+	uint32_t new_size;
+	
+	if (buf->offset + count > buf->size)
+	{
+		new_size = 2 * buf->size;
+		
+		if (buf->offset + count > new_size) { new_size = (((buf->offset + count + 15) >> 4) << 4); }
+		
+		buf->data = realloc(buf->data, new_size);
+		
+		if (buf->data == NULL) { return 0; }
+		
+    buf->size = new_size;
+	}
+    
+	memcpy(buf->data + buf->offset, data, count);
+	buf->offset += count;
+    
+	return count;
+}
 
-  GifFileType *gif = EGifOpenFileName(fileName, true, &error);
+GifFileType * CDECL gifenc_open(int width, int height, int bckgrnd, int colors, const uint8_t *palette)
+{
+  int size = (width * height) + 1024;
+  
+  buffer.data = malloc(size);
+  buffer.size = size;
+  buffer.offset = 0;
+
+	if (buffer.data == NULL) { return NULL; }
+
+  GifFileType *gif = EGifOpen(&buffer, &gifldg_write, NULL);
     
   if (gif)
   {
@@ -129,11 +172,22 @@ int32_t CDECL gifenc_set_special(GifFileType *gif, int frame_idx, int trnsprnt, 
   return ret;
 }
 
-int32_t CDECL gifenc_write(GifFileType *gif) { return (int32_t)EGifSpew(gif); }
+int32_t CDECL gifenc_write(GifFileType *gif) { return EGifSpew(gif); }
 
-int32_t CDECL gifenc_close(GifFileType *gif) // close is implicit after write, but must be called in case of error while writing
+uint8_t* CDECL gifenc_get_filedata() { return buffer.data; }
+uint32_t CDECL gifenc_get_filesize() { return buffer.offset; }
+
+int32_t CDECL gifenc_close(GifFileType *gif)
 {
-	return EGifCloseFile(gif, NULL);
+	EGifCloseFile(gif, NULL);
+
+	free(buffer.data);
+
+  buffer.data = NULL;
+  buffer.size = 0;
+  buffer.offset = 0;
+
+	return GIF_OK;
 }
 
 const char * CDECL gifenc_get_last_error(GifFileType *gif) { return GifErrorString(gif->Error); }
@@ -144,7 +198,7 @@ PROC LibFunc[] =
 {
   {"gifenc_get_lib_version", "const char* gifenc_get_lib_version();\n", gifenc_get_lib_version},
    
-  {"gifenc_open", "GifFileType* gifenc_open(const char *fileName, int width, int height, int bckgrnd, int colors, const uint8_t *palette);\n", gifenc_open},
+  {"gifenc_open", "GifFileType* gifenc_open(int width, int height, int bckgrnd, int colors, const uint8_t *palette);\n", gifenc_open},
   
   {"gifenc_set_loops", "int32_t gifenc_set_loops(GifFileType *gif, int loops);\n", gifenc_set_loops},
 
@@ -152,12 +206,14 @@ PROC LibFunc[] =
   {"gifenc_set_special", "int32_t gifenc_set_special(GifFileType *gif, int frame_idx, int trnsprnt, int disposal, int delay);\n", gifenc_set_special},
   
   {"gifenc_write", "int32_t gifenc_write(GifFileType *gif);\n", gifenc_write},
+  {"gifenc_get_filedata", "uint8_t* gifenc_get_filedata(GifFileType *gif);\n", gifenc_get_filedata},
+  {"gifenc_get_filesize", "uint32_t gifenc_get_filesize(GifFileType *gif);\n", gifenc_get_filesize},
   {"gifenc_close", "int32_t gifenc_close(GifFileType *gif);\n", gifenc_close},
 
   {"gifenc_get_last_error", "const char* gifenc_get_last_error(GifFileType *gif);\n", gifenc_get_last_error},
 };
 
-LDGLIB LibLdg[] = { { 0x0001, 8, LibFunc, VERSION_LDG(GIFLIB_MAJOR, GIFLIB_MINOR, GIFLIB_RELEASE), 1} };
+LDGLIB LibLdg[] = { { 0x0001, 10, LibFunc, VERSION_LDG(GIFLIB_MAJOR, GIFLIB_MINOR, GIFLIB_RELEASE), 1} };
 
 /*  */
 
