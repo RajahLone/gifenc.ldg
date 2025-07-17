@@ -4,7 +4,6 @@
 #include <string.h>
 
 #include <ldg.h>
-#include <libshare.h>
 #include <gif_lib.h>
 
 #define STRINGIFY(x) #x
@@ -214,13 +213,12 @@ PROC LibFunc[] =
   {"gifenc_get_last_error", "const char* gifenc_get_last_error(GifFileType *gif);\n", gifenc_get_last_error},
 };
 
-LDGLIB LibLdg[] = { { 0x0002, 10, LibFunc, VERSION_LDG(GIFLIB_MAJOR, GIFLIB_MINOR, GIFLIB_RELEASE), 1} };
+LDGLIB LibLdg[] = { { 0x0003, 10, LibFunc, VERSION_LDG(GIFLIB_MAJOR, GIFLIB_MINOR, GIFLIB_RELEASE), 1} };
 
 /*  */
 
 int main(void)
 {
   ldg_init(LibLdg);
-  libshare_init();
   return 0;
 }

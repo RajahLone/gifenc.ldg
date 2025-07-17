@@ -3,7 +3,7 @@
 #
 CFLAGS  = -Wall -O2 -fomit-frame-pointer
 LDFLAGS = -s
-LDLIBS  =  -lshare -lldg -lgif
+LDLIBS  = -lldg -lgif
 
 TARGET = gifenc.ldg
 
