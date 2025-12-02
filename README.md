@@ -5,6 +5,7 @@ Library using the LDG system and the GIF encoder functions from GIFLIB.
 Used by:
 
 * P2SM to save images in GIF format.
+* MapEdit to save tiles to GIF (tiles singletons or tiles containor).
 * MAKE_MAP to slice large GIF into tiles and map array.
 
 Other programs can use it, please read these sources and P2SM GFA source.

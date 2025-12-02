@@ -29,7 +29,7 @@ static GifLdgBuffer buffer;
 
 const char * CDECL gifenc_get_lib_version() { return VERSION_LIB(GIFLIB_MAJOR, GIFLIB_MINOR, GIFLIB_RELEASE); }
 
-int gifldg_write(GifFileType* gif, const GifByteType* data, int count)
+static int gifldg_write(GifFileType* gif, const GifByteType* data, int count)
 {
   GifLdgBuffer *buf = (GifLdgBuffer *) gif->UserData;
     
@@ -56,7 +56,7 @@ int gifldg_write(GifFileType* gif, const GifByteType* data, int count)
 
 GifFileType * CDECL gifenc_open(int width, int height, int bckgrnd, int colors, const uint8_t *palette)
 {
-  int size = (width * height) + 1024;
+  int size = (width * height) + 1024 + 7; size &= ~7;
   
   buffer.data = malloc(size);
   buffer.size = size;
