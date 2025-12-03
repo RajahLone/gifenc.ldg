@@ -15,15 +15,15 @@
 
 /* structures */
 
-typedef struct GifLdgBuffer {
-  uint8_t *data;
-  int size;
-  int offset;
-} GifLdgBuffer;
+typedef struct gif_mem_file {
+  uint8_t  *data;
+  uint32_t size;
+  uint32_t offset;
+} gif_mem_file;
 
 /* global variables */
 
-static GifLdgBuffer buffer;
+static gif_mem_file gif_mf;
 
 /* functions */
 
@@ -31,25 +31,25 @@ const char * CDECL gifenc_get_lib_version() { return VERSION_LIB(GIFLIB_MAJOR, G
 
 static int gifldg_write(GifFileType* gif, const GifByteType* data, int count)
 {
-  GifLdgBuffer *buf = (GifLdgBuffer *) gif->UserData;
+  gif_mem_file *mf = (gif_mem_file *) gif->UserData;
     
   uint32_t new_size;
    
-  if (buf->offset + count > buf->size)
+  if (mf->offset + count > mf->size)
   {
-    new_size = 2 * buf->size;
+    new_size = 2 * mf->size;
       
-    if (buf->offset + count > new_size) { new_size = (((buf->offset + count + 15) >> 4) << 4); }
+    if (mf->offset + count > new_size) { new_size = (((mf->offset + count + 15) >> 4) << 4); }
       
-    buf->data = realloc(buf->data, new_size);
+    mf->data = realloc(mf->data, new_size);
       
-    if (buf->data == NULL) { return 0; }
+    if (mf->data == NULL) { return 0; }
       
-    buf->size = new_size;
+    mf->size = new_size;
   }
     
-  memcpy(buf->data + buf->offset, data, count);
-  buf->offset += count;
+  memcpy(mf->data + mf->offset, data, count);
+  mf->offset += count;
     
   return count;
 }
@@ -58,13 +58,13 @@ GifFileType * CDECL gifenc_open(int width, int height, int bckgrnd, int colors, 
 {
   int size = (width * height) + 1024 + 7; size &= ~7;
   
-  buffer.data = malloc(size);
-  buffer.size = size;
-  buffer.offset = 0;
+  gif_mf.data = malloc(size);
+  gif_mf.size = size;
+  gif_mf.offset = 0;
 
-  if (buffer.data == NULL) { return NULL; }
+  if (gif_mf.data == NULL) { return NULL; }
 
-  GifFileType *gif = EGifOpen(&buffer, &gifldg_write, NULL);
+  GifFileType *gif = EGifOpen(&gif_mf, gifldg_write, NULL);
     
   if (gif)
   {
@@ -174,20 +174,20 @@ int32_t CDECL gifenc_set_special(GifFileType *gif, int frame_idx, int trnsprnt, 
 
 int32_t CDECL gifenc_write(GifFileType *gif) { return EGifSpew(gif); }
 
-uint8_t* CDECL gifenc_get_filedata() { return buffer.data; }
-uint32_t CDECL gifenc_get_filesize() { return buffer.offset; }
+uint8_t* CDECL gifenc_get_filedata() { return gif_mf.data; }
+uint32_t CDECL gifenc_get_filesize() { return gif_mf.offset; }
 
 int32_t CDECL gifenc_close(GifFileType *gif)
 {
   EGifCloseFile(gif, NULL);
 
-  free(buffer.data);
+  free(gif_mf.data);
 
-  buffer.data = NULL;
-  buffer.size = 0;
-  buffer.offset = 0;
+  gif_mf.data = NULL;
+  gif_mf.size = 0;
+  gif_mf.offset = 0;
 
-   return GIF_OK;
+  return GIF_OK;
 }
 
 const char * CDECL gifenc_get_last_error(GifFileType *gif) { return GifErrorString(gif->Error); }
