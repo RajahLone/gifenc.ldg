@@ -25,27 +25,35 @@ typedef struct gif_mem_file {
 
 static gif_mem_file gif_mf;
 
-/* functions */
+GifFileType *gif_write = NULL;
 
-const char * CDECL gifenc_get_lib_version() { return VERSION_LIB(GIFLIB_MAJOR, GIFLIB_MINOR, GIFLIB_RELEASE); }
+/* internal functions */
 
-static int gifldg_write(GifFileType* gif, const GifByteType* data, int count)
+static int gifldg_write(GifFileType* gif_ptr, const GifByteType* data, int count)
 {
-  gif_mem_file *mf = (gif_mem_file *) gif->UserData;
+  gif_mem_file *mf = (gif_mem_file *) gif_ptr->UserData;
     
   uint32_t new_size;
-   
+  uint8_t * new_mem;
+
   if (mf->offset + count > mf->size)
   {
     new_size = 2 * mf->size;
       
     if (mf->offset + count > new_size) { new_size = (((mf->offset + count + 15) >> 4) << 4); }
       
-    mf->data = realloc(mf->data, new_size);
-      
-    if (mf->data == NULL) { return 0; }
-      
+    // start realloc
+    new_mem = (uint8_t *)ldg_Malloc(new_size);
+    
+    if (new_mem == NULL) { return 0; }
+    
+    memcpy(new_mem, mf->data, mf->offset);
+     
+    ldg_Free(mf->data);
+
+    mf->data = new_mem;
     mf->size = new_size;
+    // end realloc
   }
     
   memcpy(mf->data + mf->offset, data, count);
@@ -54,51 +62,73 @@ static int gifldg_write(GifFileType* gif, const GifByteType* data, int count)
   return count;
 }
 
-GifFileType * CDECL gifenc_open(int width, int height, int bckgrnd, int colors, const uint8_t *palette)
+/* functions */
+
+const char * CDECL gifenc_get_lib_version() { return VERSION_LIB(GIFLIB_MAJOR, GIFLIB_MINOR, GIFLIB_RELEASE); }
+
+int32_t CDECL gifenc_close()
 {
+  if (gif_write != NULL) { EGifCloseFile(gif_write, NULL); }
+
+  gif_write = NULL;
+  
+  ldg_Free(gif_mf.data);
+
+  gif_mf.data = NULL;
+  gif_mf.size = 0;
+  gif_mf.offset = 0;
+
+  return GIF_OK;
+}
+uint32_t CDECL gifenc_open(int width, int height, int bckgrnd, int colors, const uint8_t *palette)
+{
+  if (gif_write != NULL) { gifenc_close(); }
+  
   int size = (width * height) + 1024 + 7; size &= ~7;
   
-  gif_mf.data = malloc(size);
+  gif_mf.data = ldg_Malloc(size);
   gif_mf.size = size;
   gif_mf.offset = 0;
 
-  if (gif_mf.data == NULL) { return NULL; }
+  if (gif_mf.data == NULL) { return GIF_ERROR; }
 
-  GifFileType *gif = EGifOpen(&gif_mf, gifldg_write, NULL);
+  gif_write = EGifOpen(&gif_mf, gifldg_write, NULL);
     
-  if (gif)
+  if (gif_write)
   {
-    gif->SWidth = width;
-    gif->SHeight = height;
-    gif->SColorResolution = 8;
-    gif->SBackGroundColor = MAX(0, MIN(bckgrnd, 255));
+    gif_write->SWidth = width;
+    gif_write->SHeight = height;
+    gif_write->SColorResolution = 8;
+    gif_write->SBackGroundColor = MAX(0, MIN(bckgrnd, 255));
     
     if ((colors > 0) && (palette != NULL))
     {
-      gif->SColorMap = GifMakeMapObject(colors, NULL);
+      gif_write->SColorMap = GifMakeMapObject(colors, NULL);
          
-      if (gif->SColorMap)
+      if (gif_write->SColorMap)
       {
         for (int c = 0; c < colors; ++c)
         {
-          gif->SColorMap->Colors[c].Red = *palette++;
-          gif->SColorMap->Colors[c].Green = *palette++;
-          gif->SColorMap->Colors[c].Blue = *palette++;
+          gif_write->SColorMap->Colors[c].Red = *palette++;
+          gif_write->SColorMap->Colors[c].Green = *palette++;
+          gif_write->SColorMap->Colors[c].Blue = *palette++;
         }
       }
     }
   }
   
-  return gif;
+  if (gif_write) { return GIF_OK; } else { return GIF_ERROR; }
 }
 
-int32_t CDECL gifenc_set_loops(GifFileType *gif, int loops)
+int32_t CDECL gifenc_set_loops(int loops)
 {
+  if (gif_write == NULL) { return GIF_ERROR; }
+
   if (loops >= 0 && loops <= 0xFFFF)
   {
     unsigned char netscape[12] = "NETSCAPE2.0";
             
-    if (GifAddExtensionBlock(&gif->ExtensionBlockCount, &gif->ExtensionBlocks, APPLICATION_EXT_FUNC_CODE, 11, netscape) == GIF_OK)
+    if (GifAddExtensionBlock(&gif_write->ExtensionBlockCount, &gif_write->ExtensionBlocks, APPLICATION_EXT_FUNC_CODE, 11, netscape) == GIF_OK)
     {
       unsigned char data[3];
       
@@ -106,24 +136,27 @@ int32_t CDECL gifenc_set_loops(GifFileType *gif, int loops)
       data[1] = loops & 0xFF;
       data[2] = (loops >> 8) & 0xFF;
             
-      return GifAddExtensionBlock(&gif->ExtensionBlockCount, &gif->ExtensionBlocks, CONTINUE_EXT_FUNC_CODE, 3, data);
+      return GifAddExtensionBlock(&gif_write->ExtensionBlockCount, &gif_write->ExtensionBlocks, CONTINUE_EXT_FUNC_CODE, 3, data);
     }
   }
   
   return GIF_ERROR;
 }
 
-int32_t CDECL gifenc_add_image(GifFileType *gif, int left, int top, int width, int height, int colors, const uint8_t *palette, const uint8_t *chunky)
+int32_t CDECL gifenc_add_frame(int left, int top, int width, int height, int colors, const uint8_t *palette, const uint8_t *chunky)
 {
+  if (gif_write == NULL) { return GIF_ERROR; }
+  if (chunky == NULL) { return GIF_ERROR; }
+
   SavedImage *frm = calloc(1, sizeof(SavedImage));
   SavedImage *ret = NULL;
   
   if (frm)
   {
-    frm->ImageDesc.Left = MAX(0, MIN(left, gif->SWidth - 1));
-    frm->ImageDesc.Top = MAX(0, MIN(top, gif->SHeight - 1));
-    frm->ImageDesc.Width = ((frm->ImageDesc.Left + width) > gif->SWidth) ? (gif->SWidth - frm->ImageDesc.Left) : width;
-    frm->ImageDesc.Height = ((frm->ImageDesc.Top + height) > gif->SHeight) ? (gif->SHeight - frm->ImageDesc.Top) : height;
+    frm->ImageDesc.Left = MAX(0, MIN(left, gif_write->SWidth - 1));
+    frm->ImageDesc.Top = MAX(0, MIN(top, gif_write->SHeight - 1));
+    frm->ImageDesc.Width = ((frm->ImageDesc.Left + width) > gif_write->SWidth) ? (gif_write->SWidth - frm->ImageDesc.Left) : width;
+    frm->ImageDesc.Height = ((frm->ImageDesc.Top + height) > gif_write->SHeight) ? (gif_write->SHeight - frm->ImageDesc.Top) : height;
     frm->ImageDesc.Interlace = false;
   
     if ((colors > 0) && (palette != NULL))
@@ -143,7 +176,7 @@ int32_t CDECL gifenc_add_image(GifFileType *gif, int left, int top, int width, i
   
     frm->RasterBits = (GifByteType*)chunky;
   
-    ret = GifMakeSavedImage(gif, frm);
+    ret = GifMakeSavedImage(gif_write, frm);
   
     free(frm);
   }
@@ -151,8 +184,10 @@ int32_t CDECL gifenc_add_image(GifFileType *gif, int left, int top, int width, i
   return ret ? GIF_OK : GIF_ERROR;
 }
 
-int32_t CDECL gifenc_set_special(GifFileType *gif, int frame_idx, int trnsprnt, int disposal, int delay)
+int32_t CDECL gifenc_set_special(int frame_idx, int trnsprnt, int disposal, int delay)
 {
+  if (gif_write == NULL) { return GIF_ERROR; }
+
   int ret = GIF_OK;
   
   if (trnsprnt > -1 || disposal > 0 || delay > 0)
@@ -164,7 +199,7 @@ int32_t CDECL gifenc_set_special(GifFileType *gif, int frame_idx, int trnsprnt, 
     gcb->DelayTime = delay;
     gcb->TransparentColor = trnsprnt;
 
-    ret = EGifGCBToSavedExtension(gcb, gif, frame_idx);
+    ret = EGifGCBToSavedExtension(gcb, gif_write, frame_idx);
     
     free(gcb);
   }
@@ -172,25 +207,17 @@ int32_t CDECL gifenc_set_special(GifFileType *gif, int frame_idx, int trnsprnt, 
   return ret;
 }
 
-int32_t CDECL gifenc_write(GifFileType *gif) { return EGifSpew(gif); }
-
-uint8_t* CDECL gifenc_get_filedata() { return gif_mf.data; }
-uint32_t CDECL gifenc_get_filesize() { return gif_mf.offset; }
-
-int32_t CDECL gifenc_close(GifFileType *gif)
+int32_t CDECL gifenc_write()
 {
-  EGifCloseFile(gif, NULL);
+  if (gif_write == NULL) { return GIF_ERROR; }
 
-  free(gif_mf.data);
-
-  gif_mf.data = NULL;
-  gif_mf.size = 0;
-  gif_mf.offset = 0;
-
-  return GIF_OK;
+  return EGifSpew(gif_write);
 }
 
-const char * CDECL gifenc_get_last_error(GifFileType *gif) { return GifErrorString(gif->Error); }
+uint8_t* CDECL gifenc_get_filedata() { if (gif_write == NULL) { return NULL; } return gif_mf.data; }
+uint32_t CDECL gifenc_get_filesize() { if (gif_write == NULL) { return 0; } return gif_mf.offset; }
+
+const char * CDECL gifenc_get_last_error() { return GifErrorString(gif_write->Error); }
 
 /* populate functions list and info for the LDG */
 
@@ -198,22 +225,22 @@ PROC LibFunc[] =
 {
   {"gifenc_get_lib_version", "const char* gifenc_get_lib_version();\n", gifenc_get_lib_version},
    
-  {"gifenc_open", "GifFileType* gifenc_open(int width, int height, int bckgrnd, int colors, const uint8_t *palette);\n", gifenc_open},
+  {"gifenc_open", "uint32_t gifenc_open(int width, int height, int bckgrnd, int colors, const uint8_t *palette);\n", gifenc_open},
   
-  {"gifenc_set_loops", "int32_t gifenc_set_loops(GifFileType *gif, int loops);\n", gifenc_set_loops},
+  {"gifenc_set_loops", "int32_t gifenc_set_loops(int loops);\n", gifenc_set_loops},
 
-  {"gifenc_add_image", "int32_t gifenc_add_image(GifFileType *gif, int left, int top, int width, int height, int colors, const uint8_t *palette, const uint8_t *chunky);\n", gifenc_add_image},
-  {"gifenc_set_special", "int32_t gifenc_set_special(GifFileType *gif, int frame_idx, int trnsprnt, int disposal, int delay);\n", gifenc_set_special},
+  {"gifenc_add_frame", "int32_t gifenc_add_image(int left, int top, int width, int height, int colors, const uint8_t *palette, const uint8_t *chunky);\n", gifenc_add_frame},
+  {"gifenc_set_special", "int32_t gifenc_set_special(int frame_idx, int trnsprnt, int disposal, int delay);\n", gifenc_set_special},
   
-  {"gifenc_write", "int32_t gifenc_write(GifFileType *gif);\n", gifenc_write},
-  {"gifenc_get_filedata", "uint8_t* gifenc_get_filedata(GifFileType *gif);\n", gifenc_get_filedata},
-  {"gifenc_get_filesize", "uint32_t gifenc_get_filesize(GifFileType *gif);\n", gifenc_get_filesize},
-  {"gifenc_close", "int32_t gifenc_close(GifFileType *gif);\n", gifenc_close},
+  {"gifenc_write", "int32_t gifenc_write();\n", gifenc_write},
+  {"gifenc_get_filedata", "uint8_t* gifenc_get_filedata();\n", gifenc_get_filedata},
+  {"gifenc_get_filesize", "uint32_t gifenc_get_filesize();\n", gifenc_get_filesize},
+  {"gifenc_close", "int32_t gifenc_close();\n", gifenc_close},
 
-  {"gifenc_get_last_error", "const char* gifenc_get_last_error(GifFileType *gif);\n", gifenc_get_last_error},
+  {"gifenc_get_last_error", "const char* gifenc_get_last_error();\n", gifenc_get_last_error},
 };
 
-LDGLIB LibLdg[] = { { 0x0003, 10, LibFunc, VERSION_LDG(GIFLIB_MAJOR, GIFLIB_MINOR, GIFLIB_RELEASE), 1} };
+LDGLIB LibLdg[] = { { 0x0004, 10, LibFunc, VERSION_LDG(GIFLIB_MAJOR, GIFLIB_MINOR, GIFLIB_RELEASE), 1} };
 
 /*  */
 
