@@ -68,7 +68,9 @@ const char * CDECL gifenc_get_lib_version() { return VERSION_LIB(GIFLIB_MAJOR, G
 
 int32_t CDECL gifenc_close()
 {
-  if (gif_write != NULL) { EGifCloseFile(gif_write, NULL); }
+  int err = 0;
+  
+  if (gif_write != NULL) { EGifCloseFile(gif_write, &err); }
 
   gif_write = NULL;
   
@@ -92,7 +94,9 @@ uint32_t CDECL gifenc_open(int width, int height, int bckgrnd, int colors, const
 
   if (gif_mf.data == NULL) { return GIF_ERROR; }
 
-  gif_write = EGifOpen(&gif_mf, gifldg_write, NULL);
+  int err = 0;
+
+  gif_write = EGifOpen(&gif_mf, gifldg_write, &err);
     
   if (gif_write)
   {
