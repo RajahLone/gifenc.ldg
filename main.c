@@ -244,7 +244,7 @@ PROC LibFunc[] =
   {"gifenc_get_last_error", "const char* gifenc_get_last_error();\n", gifenc_get_last_error},
 };
 
-LDGLIB LibLdg[] = { { 0x0004, 10, LibFunc, VERSION_LDG(GIFLIB_MAJOR, GIFLIB_MINOR, GIFLIB_RELEASE), 1} };
+LDGLIB LibLdg[] = { { 0x0005, 10, LibFunc, VERSION_LDG(GIFLIB_MAJOR, GIFLIB_MINOR, GIFLIB_RELEASE), 1} };
 
 /*  */
 
